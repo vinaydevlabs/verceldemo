@@ -8,7 +8,8 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -29,6 +30,10 @@ def p95(values):
     sorted_vals = sorted(values)
     index = int(0.95 * len(sorted_vals))
     return sorted_vals[min(index, len(sorted_vals) - 1)]
+
+@app.get("/api/analytics")
+def health():
+    return {"status": "ok"}
 
 @app.post("/api/analytics")
 def analytics(req: AnalyticsRequest):
