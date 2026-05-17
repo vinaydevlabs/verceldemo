@@ -1,5 +1,4 @@
 import os, json
-import numpy as np
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -13,7 +12,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# More robust path — works both locally and on Vercel
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA_PATH = os.path.join(BASE_DIR, "q-vercel-latency.json")
 
@@ -24,6 +22,14 @@ class AnalyticsRequest(BaseModel):
     regions: list[str]
     threshold_ms: float
 
+def mean(values):
+    return sum(values) / len(values)
+
+def p95(values):
+    sorted_vals = sorted(values)
+    index = int(0.95 * len(sorted_vals))
+    return sorted_vals[min(index, len(sorted_vals) - 1)]
+
 @app.post("/api/analytics")
 def analytics(req: AnalyticsRequest):
     result = {}
@@ -33,11 +39,11 @@ def analytics(req: AnalyticsRequest):
             result[region] = None
             continue
         latencies = [r["latency_ms"] for r in records]
-        uptimes   = [r["uptime"] for r in records]
+        uptimes   = [r["uptime_pct"] for r in records]
         result[region] = {
-            "avg_latency": round(float(np.mean(latencies)), 4),
-            "p95_latency": round(float(np.percentile(latencies, 95)), 4),
-            "avg_uptime":  round(float(np.mean(uptimes)), 4),
-            "breaches":    int(sum(1 for l in latencies if l > req.threshold_ms)),
+            "avg_latency": round(mean(latencies), 4),
+            "p95_latency": round(p95(latencies), 4),
+            "avg_uptime":  round(mean(uptimes), 4),
+            "breaches":    sum(1 for l in latencies if l > req.threshold_ms),
         }
     return result
